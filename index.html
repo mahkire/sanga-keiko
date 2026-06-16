@@ -232,8 +232,8 @@ const characters = [
 {
     name:"西川祐樹",
     maxHP:280,
-    power:32,
-    technique:92,
+    power:40,
+    technique:90,
     speed:55,
     stamina:60,
     weight:56,
@@ -273,7 +273,7 @@ const characters = [
     speed:40,
     stamina:40,
     weight:46,
-    mental:40,
+    mental:30,
     favorite:"寄り"
 },
 
@@ -636,6 +636,7 @@ HP ${player.maxHP}<br>
 技術 ${player.technique}<br>
 速度 ${player.speed}<br>
 体格 ${player.weight}<br>
+総合力 ${(player.maxHP / 4) + player.power + player.technique + player.speed + player.weight}<br>
 </div>
 
 <div>
@@ -646,6 +647,7 @@ HP ${enemy.maxHP}<br>
 技術 ${enemy.technique}<br>
 速度 ${enemy.speed}<br>
 体格 ${enemy.weight}<br>
+総合力 ${(enemy.maxHP / 4) + enemy.power + enemy.technique + enemy.speed + enemy.weight}<br>
 </div>
 `;
 }
