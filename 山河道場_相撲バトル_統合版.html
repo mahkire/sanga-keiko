@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>山河道場 相撲バトル</title>
+    <style>
+body{
+    font-family:sans-serif;
+    background:#ececec;
+    margin:0;
+    padding:20px;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:15px;
+}
+
+h1{
+    text-align:center;
+}
+
+.menu{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+button{
+    padding:10px 18px;
+    margin:5px;
+    cursor:pointer;
+}
+
+#status{
+    margin:15px 0;
+    padding:10px;
+    background:#f8f8f8;
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+}
+
+#status > div{
+    flex:1;
+}
+
+.fighterArea{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+}
+
+.hpOuter{
+    width:400px;
+    height:28px;
+    background:#ddd;
+    border-radius:15px;
+    overflow:hidden;
+}
+
+.hpInner{
+    height:100%;
+    width:100%;
+    background:#2ecc71;
+    transition:.4s;
+}
+
+#ringContainer{
+    position:relative;
+    height:50px;
+    background:#ddd;
+    margin-top:30px;
+    border-radius:25px;
+}
+
+#ringMarker{
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    background:#e74c3c;
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    transition:.5s;
+}
+
+#positionText{
+    text-align:center;
+    margin-top:10px;
+    font-weight:bold;
+}
+
+#battleArea{
+    text-align:center;
+    margin-top:20px;
+}
+
+#result{
+    margin-top:20px;
+    padding:10px;
+    background:#fafafa;
+}
+
+#battleLog{
+    margin-top:20px;
+    border:1px solid #ccc;
+    height:250px;
+    overflow-y:auto;
+    padding:10px;
+    background:white;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>山河道場 相撲バトル</h1>
+
+    <div class="menu">
+        <select id="characterSelect"></select>
+        <button id="statusBtn">能力確認</button>
+        <button id="battleBtn">対戦開始</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="fighterArea">
+        <div>
+            <h3 id="playerName">プレイヤー</h3>
+            <div class="hpOuter">
+                <div id="playerHPBar" class="hpInner"></div>
+            </div>
+            <div id="playerHPText"></div>
+        </div>
+
+        <div>
+            <h3 id="enemyName">相手</h3>
+            <div class="hpOuter">
+                <div id="enemyHPBar" class="hpInner"></div>
+            </div>
+            <div id="enemyHPText"></div>
+        </div>
+    </div>
+
+    <div id="ringContainer">
+        <div id="ringMarker"></div>
+    </div>
+
+    <div id="positionText"></div>
+
+    <div id="battleArea">
+        <button class="techBtn" data-tech="押し">押し</button>
+        <button class="techBtn" data-tech="寄り">寄り</button>
+        <button class="techBtn" data-tech="投げ">投げ</button>
+        <button class="techBtn" data-tech="はたき">はたき</button>
+    </div>
+
+    <div id="result"></div>
+
+    <div id="battleLog"></div>
+
+</div>
+
+<script>
+const characters = [
+
+{
+    name:"藤沢陸斗",
+    maxHP:180,
+    power:25,
+    technique:25,
+    speed:35,
+    stamina:30,
+    weight:45,
+    mental:45,
+    special:"応援",
+    favorite:"はたき"
+},
+
+{
+    name:"弓原夏希",
+    maxHP:280,
+    power:70,
+    technique:90,
+    speed:85,
+    stamina:100,
+    weight:55,
+    mental:90,
+    special:"実力者",
+    favorite:"投げ"
+},
+
+{
+    name:"道野明紀",
+    maxHP:360,
+    power:95,
+    technique:65,
+    speed:45,
+    stamina:75,
+    weight:85,
+    mental:75,
+    special:"重量押し",
+    favorite:"押し"
+},
+
+{
+    name:"吉岡春輝",
+    maxHP:230,
+    power:45,
+    technique:35,
+    speed:30,
+    stamina:30,
+    weight:60,
+    mental:40,
+    special:"努力家",
+    favorite:"はたき"
+},
+
+{
+    name:"秋山将人",
+    maxHP:380,
+    power:70,
+    technique:45,
+    speed:45,
+    stamina:55,
+    weight:90,
+    mental:70,
+    special:"安定感",
+    favorite:"寄り"
+},
+
+{
+    name:"西川祐樹",
+    maxHP:240,
+    power:35,
+    technique:90,
+    speed:75,
+    stamina:60,
+    weight:50,
+    mental:70,
+    special:"投げ名人",
+    favorite:"投げ"
+},
+
+{
+    name:"丸内まどか",
+    maxHP:320,
+    power:100,
+    technique:35,
+    speed:70,
+    stamina:80,
+    weight:40,
+    mental:85,
+    special:"猛進",
+    favorite:"寄り"
+},
+
+{
+    name:"松山響",
+    maxHP:250,
+    power:65,
+    technique:25,
+    speed:25,
+    stamina:30,
+    weight:100,
+    mental:65,
+    special:"巨体",
+    favorite:"寄り"
+},
+
+{
+    name:"田中雪",
+    maxHP:210,
+    power:65,
+    technique:40,
+    speed:40,
+    stamina:40,
+    weight:40,
+    mental:40,
+    special:"初心者",
+    favorite:"寄り"
+},
+
+{
+    name:"二宮紅梨",
+    maxHP:340,
+    power:75,
+    technique:50,
+    speed:70,
+    stamina:65,
+    weight:70,
+    mental:75,
+    special:"勝負勘",
+    favorite:"押し"
+}
+
+];
+
+const techniques = {
+
+押し:{
+    power:1.6,
+    technique:0.2,
+    speed:0.3,
+    weight:0.9
+},
+
+寄り:{
+    power:2,
+    technique:0.1,
+    speed:0.1,
+    weight:1.1
+},
+
+投げ:{
+    power:0.4,
+    technique:1.2,
+    speed:1.0,
+    weight:0.1
+},
+
+はたき:{
+    power:0.7,
+    technique:1.4,
+    speed:1.5,
+    weight:-0.2
+}
+
+};
+</script>
+<script>
+let player;
+let enemy;
+
+let playerHP;
+let enemyHP;
+
+let position = 0;
+let lastWinnerTech;
+let lastPositionChangeTech;
+let turnCount = 0;
+
+function calculateScore(ch,tech){
+
+    const t = techniques[tech];
+
+    let score =
+
+    ch.power*t.power +
+    ch.technique*t.technique +
+    ch.speed*t.speed +
+    ch.weight*t.weight +
+    ch.mental*0.4;
+
+    if(tech === ch.favorite){
+        score += 25;
+    }
+
+    score -= turnCount / ch.stamina;
+    let finalScore = applySpecial(ch,score);
+
+    if((ch === player && playerHP <= 0) ||
+       (ch === enemy && enemyHP <= 0)){
+        finalScore *= 0.5;
+    }
+
+    return finalScore;
+}
+
+function applySpecial(ch,score){
+
+    switch(ch.special){
+
+        case "実力者":
+            score += 20;
+            break;
+
+        case "重量押し":
+            score += 15;
+            break;
+
+        case "猛進":
+            score += 18;
+            break;
+
+        case "投げ名人":
+            score += 20;
+            break;
+
+        case "巨体":
+            score += 25;
+            break;
+
+        case "安定感":
+            score += 10;
+            break;
+
+        case "努力家":
+            score += 5;
+            break;
+
+        case "応援":
+            score += Math.random()*10;
+            break;
+
+        case "勝負勘":
+            score += Math.random()*25;
+            break;
+
+        case "初心者":
+            score -= 15;
+            break;
+    }
+
+    return score;
+}
+
+function compatibility(a,b){
+
+    const strong = {
+
+        投げ:"押し",
+        押し:"はたき",
+        はたき:"寄り",
+        寄り:"投げ"
+
+    };
+
+    const weak = {
+
+        投げ:"寄り",
+        押し:"投げ",
+        はたき:"押し",
+        寄り:"はたき"
+
+    };
+
+    if(strong[a] === b){
+        return 25;
+    }
+
+    if(weak[a] === b){
+        return -25;
+    }
+
+    return 0;
+}
+
+function executeTurn(playerTech){
+
+    turnCount += 1;
+
+    const techs = Object.keys(techniques);
+
+    let enemyTech;
+    if(Math.random() < 0.5){
+        enemyTech = enemy.favorite;
+    }else{
+        enemyTech = techs[Math.floor(Math.random()*techs.length)];
+    }
+
+    let playerScore =
+    calculateScore(player,playerTech);
+
+    let enemyScore =
+    calculateScore(enemy,enemyTech);
+
+    if(enemyTech === "寄り"){
+        const baseScore = playerScore;
+        const yoriScore = calculateScore(player, "寄り");
+        playerScore = baseScore * 0.7 + yoriScore * 0.3;
+    }
+
+    if(playerTech === "寄り"){
+        const baseScore = enemyScore;
+        const yoriScore = calculateScore(enemy, "寄り");
+        enemyScore = baseScore * 0.7 + yoriScore * 0.3;
+    }
+
+    playerScore += compatibility(
+        playerTech,
+        enemyTech
+    );
+
+    enemyScore += compatibility(
+        enemyTech,
+        playerTech
+    );
+
+    playerScore += Math.random()*20;
+    enemyScore += Math.random()*20;
+
+    const diff =
+    playerScore - enemyScore;
+
+    resolveBattle(
+        diff,
+        playerTech,
+        enemyTech
+    );
+
+    return {
+        playerTech,
+        enemyTech,
+        playerScore,
+        enemyScore,
+        diff
+    };
+}
+
+function resolveBattle(
+    diff,
+    playerTech,
+    enemyTech
+){
+
+    const winnerTech =
+    diff > 0 ? playerTech : enemyTech;
+    lastWinnerTech = winnerTech;
+
+    let damage =
+    Math.floor(Math.abs(diff)/6);
+
+    if(winnerTech==="投げ"){
+        damage *= 1.8;
+    }
+
+    if(winnerTech==="はたき"){
+        damage *= 1.4;
+    }
+
+    damage = Math.floor(Math.max(5,damage));
+
+    if(diff > 0){
+
+        enemyHP -= damage;
+        enemyHP = Math.max(0, enemyHP);
+
+        if(playerTech==="押し"){
+
+            position +=
+            Math.floor(
+            Math.abs(diff)/1
+            );
+            lastPositionChangeTech = "押し";
+
+        }
+
+        if(playerTech==="寄り"){
+
+            position +=
+            Math.floor(
+            Math.abs(diff)/1.5
+            );
+            lastPositionChangeTech = "寄り";
+
+        }
+
+    }else{
+
+        playerHP -= damage;
+        playerHP = Math.max(0, playerHP);
+
+        if(enemyTech==="押し"){
+
+            position -=
+            Math.floor(
+            Math.abs(diff)/1
+            );
+            lastPositionChangeTech = "押し";
+
+        }
+
+        if(enemyTech==="寄り"){
+
+            position -=
+            Math.floor(
+            Math.abs(diff)/1.5
+            );
+            lastPositionChangeTech = "寄り";
+
+        }
+    }
+
+    position =
+    Math.max(
+        -200,
+        Math.min(200,position)
+    );
+}
+
+function checkWinner(){
+
+    if(position >= 200){
+        const method = lastPositionChangeTech === "寄り" ? "寄り切り" : "押し出し";
+        return {
+            winner: player.name,
+            method: method
+        };
+    }
+
+    if(position <= -200){
+        const method = lastPositionChangeTech === "寄り" ? "寄り切り" : "押し出し";
+        return {
+            winner: enemy.name,
+            method: method
+        };
+    }
+
+    return null;
+}
+</script>
+<script>
+const select =
+document.getElementById(
+"characterSelect"
+);
+
+let gameActive = false;
+
+characters.forEach((c,i)=>{
+
+    const option =
+    document.createElement("option");
+
+    option.value=i;
+    option.textContent=c.name;
+
+    select.appendChild(option);
+});
+
+function startBattle(){
+
+    player =
+    characters[select.value];
+
+    do{
+
+        enemy =
+        characters[
+        Math.floor(
+        Math.random()*
+        characters.length
+        )];
+
+    }
+    while(
+    enemy.name===player.name
+    );
+
+    playerHP =
+    player.maxHP;
+
+    enemyHP =
+    enemy.maxHP;
+
+    position = 0;
+    turnCount = 0;
+
+    gameActive = true;
+
+    updateStatus();
+    updateHP();
+    updateRing();
+
+    document
+    .getElementById(
+    "battleLog"
+    ).innerHTML = "";
+
+    document
+    .getElementById(
+    "result"
+    ).innerHTML = "";
+}
+
+function updateStatus(){
+
+    document
+    .getElementById("status")
+    .innerHTML =
+
+`
+<div>
+<h3>${player.name}</h3>
+
+HP ${player.maxHP}<br>
+馬力 ${player.power}<br>
+技術 ${player.technique}<br>
+速度 ${player.speed}<br>
+体格 ${player.weight}<br>
+特殊 ${player.special}
+</div>
+
+<div>
+<h3>${enemy.name}</h3>
+
+HP ${enemy.maxHP}<br>
+馬力 ${enemy.power}<br>
+技術 ${enemy.technique}<br>
+速度 ${enemy.speed}<br>
+体格 ${enemy.weight}<br>
+特殊 ${enemy.special}
+</div>
+`;
+}
+
+function updateHP(){
+
+    const playerRate =
+    (playerHP/player.maxHP)
+    *100;
+
+    const enemyRate =
+    (enemyHP/enemy.maxHP)
+    *100;
+
+    document
+    .getElementById(
+    "playerHPBar"
+    ).style.width =
+    playerRate+"%";
+
+    document
+    .getElementById(
+    "enemyHPBar"
+    ).style.width =
+    enemyRate+"%";
+
+    document
+    .getElementById(
+    "playerHPText"
+    ).textContent =
+    `${playerHP}/${player.maxHP}`;
+
+    document
+    .getElementById(
+    "enemyHPText"
+    ).textContent =
+    `${enemyHP}/${enemy.maxHP}`;
+
+    document
+    .getElementById(
+    "playerName"
+    ).textContent =
+    player.name;
+
+    document
+    .getElementById(
+    "enemyName"
+    ).textContent =
+    enemy.name;
+}
+
+function updateRing(){
+
+    const percent =
+    ((position+200)/400)
+    *100;
+
+    document
+    .getElementById(
+    "ringMarker"
+    ).style.left =
+    percent+"%";
+
+    document
+    .getElementById(
+    "positionText"
+    ).textContent =
+    `位置 ${Math.round(position)}`;
+}
+
+function addLog(text){
+
+    const log =
+    document.getElementById(
+    "battleLog"
+    );
+
+    log.innerHTML =
+    text+"<br><hr>" +
+    log.innerHTML;
+}
+
+document
+.querySelectorAll(
+".techBtn"
+)
+.forEach(btn=>{
+
+btn.addEventListener(
+"click",
+()=>{
+
+if(!player) return;
+if(!gameActive) return;
+
+const result =
+executeTurn(
+btn.dataset.tech
+);
+
+updateHP();
+updateRing();
+
+addLog(
+
+`${player.name}
+【${result.playerTech}】
+
+vs
+
+${enemy.name}
+【${result.enemyTech}】
+
+差:
+${Math.round(result.diff)}
+`
+
+);
+
+const winner =
+checkWinner();
+
+if(winner){
+
+const methodText = {
+    "押し":"押し出し",
+    "寄り":"寄り切り",
+    "投げ":"投げ",
+    "はたき":"はたき"
+}[winner.method] || winner.method;
+
+document
+.getElementById(
+"result"
+).innerHTML =
+
+`<h2>${winner.winner}の勝利！</h2>
+<p>決まり手：${methodText}</p>`;
+
+gameActive = false;
+}
+
+});
+});
+
+document
+.getElementById(
+"statusBtn"
+)
+.addEventListener(
+"click",
+()=>{
+    const status = document.getElementById("status");
+    status.style.display = status.style.display === "none" ? "block" : "none";
+}
+);
+
+document
+.getElementById(
+"battleBtn"
+)
+.addEventListener(
+"click",
+startBattle
+);
+</script>
+
+</body>
+</html>
