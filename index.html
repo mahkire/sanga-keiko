@@ -178,7 +178,6 @@ const characters = [
     stamina:30,
     weight:49,
     mental:45,
-    special:"応援",
     favorite:"はたき"
 },
 
@@ -191,7 +190,6 @@ const characters = [
     stamina:100,
     weight:50,
     mental:90,
-    special:"実力者",
     favorite:"投げ"
 },
 
@@ -204,7 +202,6 @@ const characters = [
     stamina:75,
     weight:67,
     mental:75,
-    special:"重量押し",
     favorite:"押し"
 },
 
@@ -217,7 +214,6 @@ const characters = [
     stamina:30,
     weight:61,
     mental:40,
-    special:"努力家",
     favorite:"はたき"
 },
 
@@ -230,7 +226,6 @@ const characters = [
     stamina:55,
     weight:71,
     mental:70,
-    special:"安定感",
     favorite:"寄り"
 },
 
@@ -243,7 +238,6 @@ const characters = [
     stamina:60,
     weight:56,
     mental:70,
-    special:"投げ名人",
     favorite:"投げ"
 },
 
@@ -256,7 +250,6 @@ const characters = [
     stamina:80,
     weight:47,
     mental:85,
-    special:"猛進",
     favorite:"寄り"
 },
 
@@ -269,7 +262,6 @@ const characters = [
     stamina:30,
     weight:79,
     mental:65,
-    special:"巨体",
     favorite:"寄り"
 },
 
@@ -282,7 +274,6 @@ const characters = [
     stamina:40,
     weight:46,
     mental:40,
-    special:"初心者",
     favorite:"寄り"
 },
 
@@ -295,7 +286,6 @@ const characters = [
     stamina:65,
     weight:61,
     mental:75,
-    special:"勝負勘",
     favorite:"押し"
 }
 
@@ -362,7 +352,7 @@ function calculateScore(ch,tech){
     }
 
     score -= turnCount / ch.stamina;
-    let finalScore = applySpecial(ch,score);
+    let finalScore = score
 
     if((ch === player && playerHP <= 0) ||
        (ch === enemy && enemyHP <= 0)){
@@ -370,54 +360,6 @@ function calculateScore(ch,tech){
     }
 
     return finalScore;
-}
-
-function applySpecial(ch,score){
-
-    switch(ch.special){
-
-        case "実力者":
-            score += 20;
-            break;
-
-        case "重量押し":
-            score += 15;
-            break;
-
-        case "猛進":
-            score += 18;
-            break;
-
-        case "投げ名人":
-            score += 20;
-            break;
-
-        case "巨体":
-            score += 25;
-            break;
-
-        case "安定感":
-            score += 10;
-            break;
-
-        case "努力家":
-            score += 5;
-            break;
-
-        case "応援":
-            score += Math.random()*10;
-            break;
-
-        case "勝負勘":
-            score += Math.random()*25;
-            break;
-
-        case "初心者":
-            score -= 15;
-            break;
-    }
-
-    return score;
 }
 
 function compatibility(a,b){
@@ -694,7 +636,6 @@ HP ${player.maxHP}<br>
 技術 ${player.technique}<br>
 速度 ${player.speed}<br>
 体格 ${player.weight}<br>
-特殊 ${player.special}
 </div>
 
 <div>
@@ -705,7 +646,6 @@ HP ${enemy.maxHP}<br>
 技術 ${enemy.technique}<br>
 速度 ${enemy.speed}<br>
 体格 ${enemy.weight}<br>
-特殊 ${enemy.special}
 </div>
 `;
 }
