@@ -41,10 +41,14 @@ button{
     display:flex;
     justify-content:space-between;
     gap:20px;
+    flex-wrap:nowrap;
+    align-items:flex-start;
+    overflow-x:auto;
 }
 
 #status > div{
-    flex:1;
+    flex:1 1 0;
+    min-width:0;
 }
 
 .fighterArea{
@@ -122,9 +126,13 @@ button{
     <h1>山河道場 相撲バトル</h1>
 
     <div class="menu">
-        <select id="characterSelect"></select>
+        <label for="playerSelect">プレイヤー:</label>
+        <select id="playerSelect"></select>
+        <label for="enemySelect">相手:</label>
+        <select id="enemySelect"></select>
         <button id="statusBtn">能力確認</button>
         <button id="battleBtn">対戦開始</button>
+        <button id="autoBtn">オート</button>
     </div>
 
     <div id="status"></div>
@@ -172,8 +180,8 @@ const characters = [
 {
     name:"藤沢陸斗",
     maxHP:180,
-    power:25,
-    technique:25,
+    power:26,
+    technique:40,
     speed:35,
     stamina:30,
     weight:49,
@@ -214,7 +222,7 @@ const characters = [
     stamina:35,
     weight:61,
     mental:20,
-    favorite:"はたき"
+    favorite:"寄り"
 },
 
 {
@@ -226,7 +234,7 @@ const characters = [
     stamina:55,
     weight:71,
     mental:70,
-    favorite:"寄り"
+    favorite:"押し"
 },
 
 {
@@ -235,7 +243,7 @@ const characters = [
     power:40,
     technique:90,
     speed:55,
-    stamina:60,
+    stamina:45,
     weight:56,
     mental:70,
     favorite:"投げ"
@@ -243,13 +251,13 @@ const characters = [
 
 {
     name:"丸内まどか",
-    maxHP:290,
-    power:100,
-    technique:35,
-    speed:70,
-    stamina:80,
+    maxHP:300,
+    power:90,
+    technique:30,
+    speed:60,
+    stamina:75,
     weight:47,
-    mental:85,
+    mental:80,
     favorite:"寄り"
 },
 
@@ -280,9 +288,9 @@ const characters = [
 {
     name:"牧野琥太郎",
     maxHP:200,
-    power:22,
-    technique:40,
-    speed:80,
+    power:20,
+    technique:35,
+    speed:70,
     stamina:20,
     weight:38,
     mental:60,
@@ -292,10 +300,10 @@ const characters = [
 {
     name:"西川未来",
     maxHP:260,
-    power:45,
+    power:40,
     technique:40,
     speed:45,
-    stamina:80,
+    stamina:90,
     weight:43,
     mental:60,
     favorite:"寄り"
@@ -318,9 +326,9 @@ const characters = [
 const techniques = {
 
 押し:{
-    power:1.6,
-    technique:0.4,
-    speed:0.4,
+    power:1.8,
+    technique:0.3,
+    speed:0.3,
     weight:0.8
 },
 
@@ -375,7 +383,7 @@ function calculateScore(ch,tech){
         score += 25;
     }
 
-    score -= turnCount / ch.stamina;
+    score -= 30 * turnCount / ch.stamina;
     let finalScore = score
 
     if((ch === player && playerHP <= 0) ||
@@ -397,24 +405,7 @@ function compatibility(a,b){
 
     };
 
-    const weak = {
-
-        投げ:"押し",
-        押し:"はたき",
-        はたき:"寄り",
-        寄り:"投げ"
-
-    };
-
-    if(strong[a] === b){
-        return 15;
-    }
-
-    if(weak[a] === b){
-        return -15;
-    }
-
-    return 0;
+    return strong[a] === b;
 }
 
 function executeTurn(playerTech){
@@ -448,18 +439,14 @@ function executeTurn(playerTech){
         enemyScore = baseScore * 0.7 + yoriScore * 0.3;
     }
 
-    playerScore += compatibility(
-        playerTech,
-        enemyTech
-    );
-
-    enemyScore += compatibility(
-        enemyTech,
-        playerTech
-    );
-
     playerScore += Math.random()*20;
     enemyScore += Math.random()*20;
+
+    if(compatibility(playerTech, enemyTech)){
+        playerScore += 50;
+    } else if(compatibility(enemyTech, playerTech)){
+        enemyScore += 50;
+    }
 
     const diff =
     playerScore - enemyScore;
@@ -582,42 +569,55 @@ function checkWinner(){
 }
 </script>
 <script>
-const select =
+const playerSelect =
 document.getElementById(
-"characterSelect"
+"playerSelect"
+);
+const enemySelect =
+document.getElementById(
+"enemySelect"
+);
+const autoBtn =
+document.getElementById(
+"autoBtn"
 );
 
 let gameActive = false;
+let autoEnabled = false;
+let autoIntervalId = null;
+
+function updateEnemyOptions(){
+    const playerIndex = Number(playerSelect.value);
+    enemySelect.innerHTML = "";
+    characters.forEach((c,i)=>{
+        if(i === playerIndex) return;
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = c.name;
+        enemySelect.appendChild(option);
+    });
+    if(enemySelect.options.length > 0){
+        enemySelect.value = enemySelect.options[0].value;
+    }
+}
 
 characters.forEach((c,i)=>{
-
-    const option =
-    document.createElement("option");
-
-    option.value=i;
-    option.textContent=c.name;
-
-    select.appendChild(option);
+    const option = document.createElement("option");
+    option.value = i;
+    option.textContent = c.name;
+    playerSelect.appendChild(option);
 });
 
+updateEnemyOptions();
+playerSelect.addEventListener("change", updateEnemyOptions);
+
 function startBattle(){
-
-    player =
-    characters[select.value];
-
-    do{
-
-        enemy =
-        characters[
-        Math.floor(
-        Math.random()*
-        characters.length
-        )];
-
+    player = characters[playerSelect.value];
+    enemy = characters[enemySelect.value];
+    if(enemy.name === player.name){
+        const available = characters.filter((c) => c.name !== player.name);
+        enemy = available[Math.floor(Math.random() * available.length)];
     }
-    while(
-    enemy.name===player.name
-    );
 
     playerHP =
     player.maxHP;
@@ -643,6 +643,95 @@ function startBattle(){
     .getElementById(
     "result"
     ).innerHTML = "";
+
+    if(autoEnabled){
+        startAuto();
+    }
+}
+
+function stopAuto(){
+    if(autoIntervalId !== null){
+        clearInterval(autoIntervalId);
+        autoIntervalId = null;
+    }
+}
+
+function toggleAuto(on){
+    autoEnabled = on;
+    autoBtn.textContent = on ? "オート: ON" : "オート: OFF";
+    if(on){
+        if(gameActive){
+            startAuto();
+        }
+    } else {
+        stopAuto();
+    }
+}
+
+function performTurn(tech){
+    if(!player) return;
+    if(!gameActive) return;
+
+    const result = executeTurn(tech);
+    updateHP();
+    updateRing();
+
+    addLog(
+
+`${player.name}
+【${result.playerTech}】
+
+vs
+
+${enemy.name}
+【${result.enemyTech}】
+
+差:
+${Math.round(result.diff)}
+`
+    );
+
+    const winner = checkWinner();
+    if(winner){
+        const methodText = {
+            "押し":"押し出し",
+            "寄り":"寄り切り",
+            "投げ":"投げ",
+            "はたき":"はたき"
+        }[winner.method] || winner.method;
+
+        document
+        .getElementById(
+        "result"
+        ).innerHTML =
+
+        `<h2>${winner.winner}の勝利！</h2>
+        <p>決まり手：${methodText}</p>`;
+
+        gameActive = false;
+        stopAuto();
+    }
+}
+
+function chooseAutoTech(){
+    const techs = Object.keys(techniques);
+    if(Math.random() < 0.5){
+        return player.favorite;
+    }
+    return techs[Math.floor(Math.random() * techs.length)];
+}
+
+function startAuto(){
+    if(autoIntervalId !== null) return;
+    if(!gameActive) return;
+
+    autoIntervalId = setInterval(() => {
+        if(!gameActive){
+            stopAuto();
+            return;
+        }
+        performTurn(chooseAutoTech());
+    }, 1000);
 }
 
 function updateStatus(){
@@ -661,6 +750,7 @@ HP ${player.maxHP}<br>
 速度 ${player.speed}<br>
 体格 ${player.weight}<br>
 総合力 ${(player.maxHP / 4) + player.power + player.technique + player.speed + player.weight}<br>
+得意技 ${player.favorite}<br>
 </div>
 
 <div>
@@ -672,6 +762,7 @@ HP ${enemy.maxHP}<br>
 速度 ${enemy.speed}<br>
 体格 ${enemy.weight}<br>
 総合力 ${(enemy.maxHP / 4) + enemy.power + enemy.technique + enemy.speed + enemy.weight}<br>
+得意技 ${enemy.favorite}<br>
 </div>
 `;
 }
@@ -763,59 +854,16 @@ document
 btn.addEventListener(
 "click",
 ()=>{
+    performTurn(btn.dataset.tech);
+});
+});
 
-if(!player) return;
-if(!gameActive) return;
-
-const result =
-executeTurn(
-btn.dataset.tech
-);
-
-updateHP();
-updateRing();
-
-addLog(
-
-`${player.name}
-【${result.playerTech}】
-
-vs
-
-${enemy.name}
-【${result.enemyTech}】
-
-差:
-${Math.round(result.diff)}
-`
-
-);
-
-const winner =
-checkWinner();
-
-if(winner){
-
-const methodText = {
-    "押し":"押し出し",
-    "寄り":"寄り切り",
-    "投げ":"投げ",
-    "はたき":"はたき"
-}[winner.method] || winner.method;
-
-document
-.getElementById(
-"result"
-).innerHTML =
-
-`<h2>${winner.winner}の勝利！</h2>
-<p>決まり手：${methodText}</p>`;
-
-gameActive = false;
+autoBtn.addEventListener(
+"click",
+()=>{
+    toggleAuto(!autoEnabled);
 }
-
-});
-});
+);
 
 document
 .getElementById(
@@ -825,7 +873,7 @@ document
 "click",
 ()=>{
     const status = document.getElementById("status");
-    status.style.display = status.style.display === "none" ? "block" : "none";
+    status.style.display = status.style.display === "none" ? "flex" : "none";
 }
 );
 
