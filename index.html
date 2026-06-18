@@ -128,12 +128,16 @@ button{
     <div class="menu">
         <label for="playerSelect">プレイヤー:</label>
         <select id="playerSelect"></select>
+        <label><input type="checkbox" id="playerAIToggle"> プレイヤーAI</label>
         <label for="enemySelect">相手:</label>
         <select id="enemySelect"></select>
+        <label><input type="checkbox" id="enemyCpuToggle" checked> CPU AI</label>
         <button id="statusBtn">能力確認</button>
         <button id="battleBtn">対戦開始</button>
         <button id="autoBtn">オート</button>
     </div>
+
+    <div id="trainingSummary" style="text-align:center; margin-bottom:10px; color:#333;">AI CPU: 1000戦学習中...</div>
 
     <div id="status"></div>
 
@@ -216,10 +220,10 @@ const characters = [
 {
     name:"吉岡春輝",
     maxHP:230,
-    power:50,
+    power:48,
     technique:45,
-    speed:35,
-    stamina:35,
+    speed:37,
+    stamina:33,
     weight:61,
     mental:20,
     favorite:"寄り"
@@ -276,7 +280,7 @@ const characters = [
 {
     name:"田中雪",
     maxHP:250,
-    power:60,
+    power:55,
     technique:40,
     speed:40,
     stamina:40,
@@ -367,7 +371,7 @@ let lastWinnerTech;
 let lastPositionChangeTech;
 let turnCount = 0;
 
-function calculateScore(ch,tech){
+function calculateScore(ch,tech,currentHP = null,currentTurn = null){
 
     const t = techniques[tech];
 
@@ -383,16 +387,191 @@ function calculateScore(ch,tech){
         score += 25;
     }
 
-    score -= 30 * turnCount / ch.stamina;
-    let finalScore = score
+    const turn = currentTurn !== null ? currentTurn : turnCount;
+    score -= 30 * turn / ch.stamina;
+    let finalScore = score;
 
-    if((ch === player && playerHP <= 0) ||
+    if(currentHP !== null){
+        if(currentHP <= 0){
+            finalScore *= 0.5;
+        }
+    } else if((ch === player && playerHP <= 0) ||
        (ch === enemy && enemyHP <= 0)){
         finalScore *= 0.5;
     }
 
     return finalScore;
 }
+
+const cpuTraining = {
+    aggregate: createTechCounts()
+};
+
+function createTechCounts(){
+    return {
+        押し:1,
+        寄り:1,
+        投げ:1,
+        はたき:1
+    };
+}
+
+function ensureTrainingStats(stats, enemyName, playerName){
+    if(!stats[enemyName]){
+        stats[enemyName] = {
+            aggregate: createTechCounts()
+        };
+    }
+    if(!stats[enemyName][playerName]){
+        stats[enemyName][playerName] = createTechCounts();
+    }
+}
+
+function getRandomPair(list){
+    const first = list[Math.floor(Math.random()*list.length)];
+    let second = list[Math.floor(Math.random()*list.length)];
+    while(second === first){
+        second = list[Math.floor(Math.random()*list.length)];
+    }
+    return [first, second];
+}
+
+function sampleTrainingTech(ch){
+    const techs = Object.keys(techniques);
+    if(Math.random() < 0.5){
+        return ch.favorite;
+    }
+    return techs[Math.floor(Math.random()*techs.length)];
+}
+
+function simulateTrainingBattle(a,b){
+    let hpA = a.maxHP;
+    let hpB = b.maxHP;
+    let position = 0;
+    let turn = 0;
+
+    let winnerTech = null;
+    while(true){
+        turn += 1;
+
+        const techA = sampleTrainingTech(a);
+        const techB = sampleTrainingTech(b);
+        winnerTech = techA;
+
+        let scoreA = calculateScore(a, techA, hpA, turn);
+        let scoreB = calculateScore(b, techB, hpB, turn);
+
+        if(techB === "寄り"){
+            const yoriA = calculateScore(a, "寄り", hpA, turn);
+            scoreA = scoreA * 0.7 + yoriA * 0.3;
+        }
+        if(techA === "寄り"){
+            const yoriB = calculateScore(b, "寄り", hpB, turn);
+            scoreB = scoreB * 0.7 + yoriB * 0.3;
+        }
+
+        scoreA += Math.random()*20;
+        scoreB += Math.random()*20;
+
+        if(compatibility(techA, techB)){
+            scoreA += 50;
+        } else if(compatibility(techB, techA)){
+            scoreB += 50;
+        }
+
+        const diff = scoreA - scoreB;
+
+        if(diff > 0){
+            let damage = Math.floor(Math.abs(diff)/6);
+            if(techA === "投げ") damage = Math.floor(damage*1.8);
+            if(techA === "はたき") damage = Math.floor(damage*1.4);
+            damage = Math.max(5, damage);
+            hpB -= damage;
+            if(techA === "押し"){
+                position += Math.floor(Math.abs(diff)/1);
+            }
+            if(techA === "寄り"){
+                position += Math.floor(Math.abs(diff)/1.5);
+            }
+        } else {
+            winnerTech = techB;
+            let damage = Math.floor(Math.abs(diff)/6);
+            if(techB === "投げ") damage = Math.floor(damage*1.8);
+            if(techB === "はたき") damage = Math.floor(damage*1.4);
+            damage = Math.max(5, damage);
+            hpA -= damage;
+            if(techB === "押し"){
+                position -= Math.floor(Math.abs(diff)/1);
+            }
+            if(techB === "寄り"){
+                position -= Math.floor(Math.abs(diff)/1.5);
+            }
+        }
+
+        hpA = Math.max(0, hpA);
+        hpB = Math.max(0, hpB);
+        position = Math.max(-200, Math.min(200, position));
+
+        const winner = checkWinnerTraining(position, hpA, hpB, a, b);
+        if(winner){
+            return winner.tech ? winner : { ...winner, tech: winnerTech };
+        }
+
+        if(turn >= 120){
+            return hpA >= hpB ? { character: a, opponent: b, tech: techA } : { character: b, opponent: a, tech: techB };
+        }
+    }
+}
+
+function checkWinnerTraining(position, hpA, hpB, a, b){
+    if(position >= 200 || hpB <= 0){
+        return { character: a, opponent: b, tech: null };
+    }
+    if(position <= -200 || hpA <= 0){
+        return { character: b, opponent: a, tech: null };
+    }
+    return null;
+}
+
+function chooseCpuTech(enemy, player){
+    const matchup = cpuTraining[enemy.name]?.[player.name];
+    const techs = Object.keys(techniques);
+    if(matchup){
+        let bestTech = techs[0];
+        let bestScore = matchup[bestTech];
+        techs.forEach((tech) => {
+            if(matchup[tech] > bestScore){
+                bestScore = matchup[tech];
+                bestTech = tech;
+            }
+        });
+        if(Math.random() < 0.1){
+            return techs[Math.floor(Math.random() * techs.length)];
+        }
+        return bestTech;
+    }
+
+    if(Math.random() < 0.5){
+        return enemy.favorite;
+    }
+    return techs[Math.floor(Math.random()*techs.length)];
+}
+
+function runCpuTraining(){
+    const trainingCount = 1000;
+    for(let i=0;i<trainingCount;i++){
+        const [a,b] = getRandomPair(characters);
+        const winner = simulateTrainingBattle(a,b);
+        const winnerName = winner.character.name;
+        const loserName = winner.opponent.name;
+        ensureTrainingStats(cpuTraining, winnerName, loserName);
+        cpuTraining[winnerName][loserName][winner.tech] += 1;
+        cpuTraining[winnerName].aggregate[winner.tech] += 1;
+    }
+}
+
+runCpuTraining();
+trainingSummary.textContent = "AI CPU: 1000戦学習済み";
 
 function compatibility(a,b){
 
@@ -415,9 +594,11 @@ function executeTurn(playerTech){
     const techs = Object.keys(techniques);
 
     let enemyTech;
-    if(Math.random() < 0.5){
+    if(enemyAIEnabled){
+        enemyTech = chooseCpuTech(enemy, player);
+    } else if(Math.random() < 0.5){
         enemyTech = enemy.favorite;
-    }else{
+    } else {
         enemyTech = techs[Math.floor(Math.random()*techs.length)];
     }
 
@@ -577,6 +758,18 @@ const enemySelect =
 document.getElementById(
 "enemySelect"
 );
+const playerAIToggle =
+document.getElementById(
+"playerAIToggle"
+);
+const enemyCpuToggle =
+document.getElementById(
+"enemyCpuToggle"
+);
+const trainingSummary =
+document.getElementById(
+"trainingSummary"
+);
 const autoBtn =
 document.getElementById(
 "autoBtn"
@@ -584,6 +777,8 @@ document.getElementById(
 
 let gameActive = false;
 let autoEnabled = false;
+let playerAIEnabled = false;
+let enemyAIEnabled = true;
 let autoIntervalId = null;
 
 function updateEnemyOptions(){
@@ -609,11 +804,20 @@ characters.forEach((c,i)=>{
 });
 
 updateEnemyOptions();
-playerSelect.addEventListener("change", updateEnemyOptions);
+
+playerAIToggle.addEventListener("change", () => {
+    playerAIEnabled = playerAIToggle.checked;
+});
+
+enemyCpuToggle.addEventListener("change", () => {
+    enemyAIEnabled = enemyCpuToggle.checked;
+});
 
 function startBattle(){
     player = characters[playerSelect.value];
     enemy = characters[enemySelect.value];
+    playerAIEnabled = playerAIToggle.checked;
+    enemyAIEnabled = enemyCpuToggle.checked;
     if(enemy.name === player.name){
         const available = characters.filter((c) => c.name !== player.name);
         enemy = available[Math.floor(Math.random() * available.length)];
@@ -713,12 +917,31 @@ ${Math.round(result.diff)}
     }
 }
 
-function chooseAutoTech(){
+function choosePlayerTech(){
     const techs = Object.keys(techniques);
+    if(playerAIEnabled){
+        if(autoEnabled || playerAIEnabled){
+            const matchup = cpuTraining[player.name]?.[enemy.name];
+            if(matchup){
+                let bestTech = techs[0];
+                let bestScore = matchup[bestTech];
+                techs.forEach((tech) => {
+                    if(matchup[tech] > bestScore){
+                        bestScore = matchup[tech];
+                        bestTech = tech;
+                    }
+                });
+                if(Math.random() < 0.1){
+                    return techs[Math.floor(Math.random() * techs.length)];
+                }
+                return bestTech;
+            }
+        }
+    }
     if(Math.random() < 0.5){
         return player.favorite;
     }
-    return techs[Math.floor(Math.random() * techs.length)];
+    return techs[Math.floor(Math.random()*techs.length)];
 }
 
 function startAuto(){
@@ -730,7 +953,9 @@ function startAuto(){
             stopAuto();
             return;
         }
-        performTurn(chooseAutoTech());
+        if(autoEnabled){
+            performTurn(choosePlayerTech());
+        }
     }, 1000);
 }
 
